@@ -1,0 +1,254 @@
+# https://github.com/dmajda/pegjs/blob/master/src/parser.pegjs
+
+#####################
+# Syntactic Grammar #
+#####################
+
+Start
+  = Grammar
+
+Grammar
+  = __ rules:(Rule __)+
+    {grammar}
+
+Rule
+  = name:Identifier __
+    alias:(StringLiteral __)?
+    "=" __
+    expression:Expression EOS
+    {rule}
+
+Expression
+  = ChoiceExpression
+
+ChoiceExpression
+  = first:ActionExpression rest:(__ "/" __ ActionExpression)*
+    {expression_choice}
+
+ActionExpression
+  = expression:SequenceExpression name:(__ CodeReference)?
+    {expression_action}
+
+SequenceExpression
+  = first:LabeledExpression rest:(__ LabeledExpression)*
+    {expression_sequence}
+
+LabeledExpression
+  = name:Identifier __ ":" __ expression:PrefixedExpression
+    {expression_labeled}
+  / PrefixedExpression
+
+PrefixedExpression
+  = operator:PrefixedOperator __ expression:SuffixedExpression
+    {expression_prefixed}
+  / SuffixedExpression
+
+PrefixedOperator
+  = "$"
+  / "&"
+  / "!"
+
+SuffixedExpression
+  = expression:PrimaryExpression __ operator:SuffixedOperator
+    {expression_suffixed}
+  / PrimaryExpression
+
+SuffixedOperator
+  = "?"
+  / "*"
+  / "+"
+
+PrimaryExpression
+  = LiteralMatcher
+  / CharacterClassMatcher
+  / AnyMatcher
+  / RuleReferenceExpression
+  / SemanticPredicateExpression
+  / "(" __ expression:Expression __ ")" {expression}
+
+RuleReferenceExpression
+  = name:Identifier !(__ (StringLiteral __)? "=")
+    {expression_reference}
+
+SemanticPredicateExpression
+  = operator:SemanticPredicateOperator __ name:CodeReference
+    {expression_predicate}
+
+SemanticPredicateOperator
+  = "&"
+  / "!"
+
+###################
+# Lexical Grammar #
+###################
+
+WhiteSpace "whitespace"
+  = "\t"
+  / "\v"
+  / "\f"
+  / " "
+
+LineTerminator
+  = "\n"
+  / "\r"
+
+LineTerminatorSequence "end of line"
+  = "\n"
+  / "\r\n"
+  / "\r"
+
+Comment "comment"
+  = "#" (!LineTerminator .)*
+
+Identifier
+  = $(!ReservedWord IdentifierName)
+
+IdentifierName "identifier"
+  = IdentifierStart IdentifierPart*
+  / Underscore+
+
+IdentifierStart
+  = Alphabetic
+
+IdentifierPart
+  = IdentifierStart
+  / DecimalDigit
+  / Underscore
+
+ReservedWord
+  = FalseToken
+  / NoneToken
+  / TrueToken
+  / AndToken
+  / AsToken
+  / AssertToken
+  / BreakToken
+  / ClassToken
+  / ContinueToken
+  / DefToken
+  / DelToken
+  / ElifToken
+  / ElseToken
+  / ExceptToken
+  / FinallyToken
+  / ForToken
+  / FromToken
+  / GlobalToken
+  / IfToken
+  / ImportToken
+  / InToken
+  / IsToken
+  / LambdaToken
+  / NonlocalToken
+  / NotToken
+  / OrToken
+  / PassToken
+  / RaiseToken
+  / ReturnToken
+  / TryToken
+  / WhileToken
+  / WithToken
+  / YieldToken
+
+LiteralMatcher "literal"
+  = pattern:StringLiteral ignore_case:"i"?
+    {matcher_literal}
+
+StringLiteral "string"
+  = '"' value:$DoubleStringCharacter* '"' {unescape_string}
+  / "'" value:$SingleStringCharacter* "'" {unescape_string}
+
+DoubleQuoteStringCharacter
+  = !('"' / "\\" / LineTerminator) .
+  / "\\" !LineTerminator .
+  / LineContinuation
+
+SingleQuoteStringCharacter
+  = !("'" / "\\" / LineTerminator) .
+  / "\\" !LineTerminator .
+  / LineContinuation
+
+CharacterClassMatcher "character class"
+  = "["
+    pattern:$ClassCharacter*
+    "]"
+    ignore_case:"i"?
+    {matcher_class}
+
+ClassCharacter
+  = !("]" / "\\" / LineTerminator) .
+  / "\\" !LineTerminator .
+  / LineContinuation
+
+LineContinuation
+  = "\\" LineTerminatorSequence
+    {line_continuation}
+
+DecimalDigit
+  = [0-9]
+
+Alphabetic
+  = [a-z]i
+
+Underscore
+  = "_"
+
+AnyMatcher
+  = "." {matcher_any}
+
+CodeReference "code reference"
+  = "{" name:Identifier? "}" {code_reference}
+
+# Tokens
+
+FalseToken    = "False"    !IdentifierPart
+NoneToken     = "None"     !IdentifierPart
+TrueToken     = "True"     !IdentifierPart
+AndToken      = "and"      !IdentifierPart
+AsToken       = "as"       !IdentifierPart
+AssertToken   = "assert"   !IdentifierPart
+BreakToken    = "break"    !IdentifierPart
+ClassToken    = "class"    !IdentifierPart
+ContinueToken = "continue" !IdentifierPart
+DefToken      = "def"      !IdentifierPart
+DelToken      = "del"      !IdentifierPart
+ElifToken     = "elif"     !IdentifierPart
+ElseToken     = "else"     !IdentifierPart
+ExceptToken   = "except"   !IdentifierPart
+FinallyToken  = "finally"  !IdentifierPart
+ForToken      = "for"      !IdentifierPart
+FromToken     = "from"     !IdentifierPart
+GlobalToken   = "global"   !IdentifierPart
+IfToken       = "if"       !IdentifierPart
+ImportToken   = "import"   !IdentifierPart
+InToken       = "in"       !IdentifierPart
+IsToken       = "is"       !IdentifierPart
+LambdaToken   = "lambda"   !IdentifierPart
+NonlocalToken = "nonlocal" !IdentifierPart
+NotToken      = "not"      !IdentifierPart
+OrToken       = "or"       !IdentifierPart
+PassToken     = "pass"     !IdentifierPart
+RaiseToken    = "raise"    !IdentifierPart
+ReturnToken   = "return"   !IdentifierPart
+TryToken      = "try"      !IdentifierPart
+WhileToken    = "while"    !IdentifierPart
+WithToken     = "with"     !IdentifierPart
+YieldToken    = "yield"    !IdentifierPart
+
+# Skipped
+
+__
+  = (WhiteSpace / LineTerminatorSequence / Comment)*
+
+_
+  = WhiteSpace*
+
+# Automatic Semicolon Insertion
+
+EOS
+  = __ ";"
+  / _ Comment? LineTerminatorSequence
+  / __ EOF
+
+EOF
+  = !.
